@@ -12,14 +12,14 @@ import streamlit as st
 st.set_page_config(page_title="Finanzas", page_icon="💳", layout="wide")
 
 PRIMARY = "#0E7AFE"   # BBVA
-PURPLE  = "#7A43F0"   # NU
+PURPLE  = "#7A43F0"   # Apartados (antes NU)
 DARK    = "#2F2F2F"   # GBM
 ACCENT  = "#EEF2F8"
 GREEN   = "#0A8A4E"
 RED     = "#D7263D"
 BLACK   = "#0B0B0B"
 
-# --- tap-to-reveal: procesa el query param ?toggle=NU|GBM ---
+# --- tap-to-reveal: procesa el query param ?toggle=AP|GBM ---
 try:
     qp = st.query_params  # Streamlit >=1.32
 except Exception:
@@ -29,11 +29,11 @@ toggle_target = None
 if qp and "toggle" in qp:
     v = qp.get("toggle")
     if isinstance(v, (list, tuple)): v = v[0]
-    if v in ("NU", "GBM"):
+    if v in ("AP", "GBM"):
         toggle_target = v
 
 # flags de visibilidad (ocultos por defecto)
-for _code in ("NU", "GBM"):
+for _code in ("AP", "GBM"):
     if f"reveal_{_code}" not in st.session_state:
         st.session_state[f"reveal_{_code}"] = False
 
@@ -340,7 +340,7 @@ def cfg_set(k, v):
         if k in cfg["clave"].values: cfg.loc[cfg["clave"]==k, "valor"]=v
         else: cfg = pd.concat([cfg, pd.DataFrame({"clave":[k], "valor":[v]})], ignore_index=True)
 
-def cuentas(): return ["BBVA Concentradora","BBVA Credito","NU","GBM"]
+def cuentas(): return ["BBVA Concentradora","BBVA Credito","Apartados","GBM"]
 def saldo_key(cta): return f"saldo_{cta}"
 
 def get_saldos():
@@ -367,7 +367,7 @@ with c1:
         st.cache_resource.clear(); st.cache_data.clear(); st.rerun()
 
 # ==========================
-#   TARJETAS DE SALDO (NU/GBM con tap-to-reveal)
+#   TARJETAS DE SALDO (Apartados/GBM con tap-to-reveal)
 # ==========================
 saldos = get_saldos()
 
@@ -391,7 +391,7 @@ def card_cuenta_pro(nombre: str, theme: str, sensitive: bool=False):
         badge_txt = "CUENTA"
 
     initials = initials_from(nombre)
-    code = "NU" if nombre=="NU" else ("GBM" if nombre=="GBM" else None)
+    code = "AP" if nombre=="Apartados" else ("GBM" if nombre=="GBM" else None)
     reveal_flag = True
     if sensitive and code:
         reveal_flag = bool(st.session_state.get(f"reveal_{code}", False))
@@ -420,7 +420,7 @@ st.markdown('<div class="grid-accounts">', unsafe_allow_html=True)
 c1,c2,c3,c4 = st.columns(4, gap="large")
 with c1: card_cuenta_pro("BBVA Concentradora","blue",  sensitive=False)
 with c2: card_cuenta_pro("BBVA Credito",      "blue",  sensitive=False)
-with c3: card_cuenta_pro("NU",                "purple",sensitive=True)
+with c3: card_cuenta_pro("Apartados",         "purple",sensitive=True)
 with c4: card_cuenta_pro("GBM",               "dark",  sensitive=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -449,38 +449,38 @@ restante_sem = max(0.0, objetivo-total_sem)
 pct_sem = 0.0 if objetivo<=0 else max(0.0, min(1.0, total_sem/objetivo))
 angulo_sem = int(360*pct_sem)
 
-# ---- Mes actual (cambio neto en NU)
+# ---- Mes actual (cambio neto en Apartados)
 inicio_mes = date(hoy.year, hoy.month, 1)
 fin_mes = hoy
 
-def _delta_mes_nu():
+def _delta_mes_apartados():
     total = 0.0
-    # Gastos desde NU (negativo)
+    # Gastos desde Apartados (negativo)
     if not gastos.empty:
         g = gastos.copy()
         g["fecha"] = pd.to_datetime(g["fecha"], errors="coerce").dt.date
-        g = g[(g["fecha"]>=inicio_mes) & (g["fecha"]<=fin_mes) & (g["cuenta"]=="NU")]
+        g = g[(g["fecha"]>=inicio_mes) & (g["fecha"]<=fin_mes) & (g["cuenta"]=="Apartados")]
         total += -float(g["monto"].sum()) if not g.empty else 0.0
-    # Traspasos enviados desde NU (negativo)
+    # Traspasos enviados desde Apartados (negativo)
     if not traspasos.empty:
         te = traspasos.copy()
         te["fecha"] = pd.to_datetime(te["fecha"], errors="coerce").dt.date
-        te = te[(te["fecha"]>=inicio_mes) & (te["fecha"]<=fin_mes) & (te["cuenta_emisora"]=="NU")]
+        te = te[(te["fecha"]>=inicio_mes) & (te["fecha"]<=fin_mes) & (te["cuenta_emisora"]=="Apartados")]
         total += -float(te["monto"].sum()) if not te.empty else 0.0
-        # Traspasos recibidos en NU (positivo)
+        # Traspasos recibidos en Apartados (positivo)
         tr = traspasos.copy()
         tr["fecha"] = pd.to_datetime(tr["fecha"], errors="coerce").dt.date
-        tr = tr[(tr["fecha"]>=inicio_mes) & (tr["fecha"]<=fin_mes) & (tr["cuenta_receptora"]=="NU")]
+        tr = tr[(tr["fecha"]>=inicio_mes) & (tr["fecha"]<=fin_mes) & (tr["cuenta_receptora"]=="Apartados")]
         total += +float(tr["monto"].sum()) if not tr.empty else 0.0
-    # Ingresos a NU (positivo)
+    # Ingresos a Apartados (positivo)
     if not ingresos.empty:
         inc = ingresos.copy()
         inc["fecha"] = pd.to_datetime(inc["fecha"], errors="coerce").dt.date
-        inc = inc[(inc["fecha"]>=inicio_mes) & (inc["fecha"]<=fin_mes) & (inc["cuenta"]=="NU")]
+        inc = inc[(inc["fecha"]>=inicio_mes) & (inc["fecha"]<=fin_mes) & (inc["cuenta"]=="Apartados")]
         total += +float(inc["monto"].sum()) if not inc.empty else 0.0
     return total
 
-avance_mes = _delta_mes_nu()  # puede ser negativo
+avance_mes = _delta_mes_apartados()  # puede ser negativo
 faltante_mes_raw = objetivo_mes - avance_mes
 if faltante_mes_raw >= 0:
     faltante_mes_txt = f"Faltante: ${faltante_mes_raw:,.2f}"
@@ -507,7 +507,7 @@ with colL:
         st.caption(f"Restante: ${restante_sem:,.2f}")
 
 with colR:
-    st.markdown('<div class="section-title">💾 Objetivo de ahorro mensual (NU)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">💾 Objetivo de ahorro mensual (Apartados)</div>', unsafe_allow_html=True)
     ra, rb = st.columns([1,3])
     with ra:
         st.markdown(f"""
@@ -933,7 +933,7 @@ def detalle(nombre):
 
 with st.expander("BBVA Concentradora"): detalle("BBVA Concentradora")
 with st.expander("BBVA Credito"):       detalle("BBVA Credito")
-with st.expander("NU"):                 detalle("NU")
+with st.expander("Apartados"):          detalle("Apartados")
 with st.expander("GBM"):                detalle("GBM")
 
 # ==========================
@@ -946,18 +946,3 @@ st.markdown("""
   <button onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">Abajo</button>
 </div>
 """, unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
