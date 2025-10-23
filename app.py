@@ -936,6 +936,77 @@ with st.expander("BBVA Credito"):       detalle("BBVA Credito")
 with st.expander("Apartados"):          detalle("Apartados")
 with st.expander("GBM"):                detalle("GBM")
 
+
+# ============================================================
+#   📊 REPORTE SEMANAL / MENSUAL (NUEVO BLOQUE)
+# ============================================================
+st.divider()
+st.markdown('<div class="section-title">📊 Reporte semanal / mensual</div>', unsafe_allow_html=True)
+
+def calcular_reporte_periodo(inicio: date, fin: date):
+    """Calcula gasto, ingreso, ahorro e inversión en el rango indicado."""
+    # --- Gastos totales ---
+    g = gastos.copy()
+    g["fecha"] = pd.to_datetime(g["fecha"], errors="coerce").dt.date
+    gasto = g[(g["fecha"]>=inicio) & (g["fecha"]<=fin)]["monto"].sum()
+
+    # --- Ingresos (solo BBVA Concentradora) ---
+    i = ingresos.copy()
+    i["fecha"] = pd.to_datetime(i["fecha"], errors="coerce").dt.date
+    ingreso = i[(i["fecha"]>=inicio) & (i["fecha"]<=fin) & (i["cuenta"]=="BBVA Concentradora")]["monto"].sum()
+
+    # --- Ahorro (movimientos netos en Apartados) ---
+    t = traspasos.copy()
+    t["fecha"] = pd.to_datetime(t["fecha"], errors="coerce").dt.date
+    entra_ap = t[(t["fecha"]>=inicio) & (t["fecha"]<=fin) & (t["cuenta_receptora"]=="Apartados")]["monto"].sum()
+    sale_ap  = t[(t["fecha"]>=inicio) & (t["fecha"]<=fin) & (t["cuenta_emisora"]=="Apartados")]["monto"].sum()
+    ahorro = entra_ap - sale_ap
+
+    # --- Inversión (todo lo que se traspasa a GBM) ---
+    inv = t[(t["fecha"]>=inicio) & (t["fecha"]<=fin) & (t["cuenta_receptora"]=="GBM")]["monto"].sum()
+
+    return {
+        "Gasto": float(gasto),
+        "Ingreso": float(ingreso),
+        "Ahorro": float(ahorro),
+        "Inversión": float(inv)
+    }
+
+# --- Fechas de referencia ---
+hoy = date.today()
+inicio_sem = hoy - timedelta(days=hoy.weekday())   # lunes
+fin_sem = inicio_sem + timedelta(days=6)
+inicio_mes = date(hoy.year, hoy.month, 1)
+fin_mes = hoy
+
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("📆 Semana actual"):
+        data = calcular_reporte_periodo(inicio_sem, fin_sem)
+        st.write(f"**Del {inicio_sem.strftime('%d %b')} al {fin_sem.strftime('%d %b')}**")
+        df_rep = pd.DataFrame(list(data.items()), columns=["Concepto","Monto"])
+        import plotly.express as px
+        fig = px.bar(df_rep, x="Concepto", y="Monto", text_auto=".2s",
+                     color="Concepto",
+                     color_discrete_sequence=["#D7263D","#0A8A4E","#7A43F0","#2F2F2F"])
+        fig.update_layout(showlegend=False, height=350,
+                          margin=dict(l=10,r=10,t=10,b=10))
+        st.plotly_chart(fig, use_container_width=True)
+
+with col2:
+    if st.button("🗓️ Mes actual"):
+        data = calcular_reporte_periodo(inicio_mes, fin_mes)
+        st.write(f"**Del {inicio_mes.strftime('%d %b')} al {fin_mes.strftime('%d %b')}**")
+        df_rep = pd.DataFrame(list(data.items()), columns=["Concepto","Monto"])
+        import plotly.express as px
+        fig = px.bar(df_rep, x="Concepto", y="Monto", text_auto=".2s",
+                     color="Concepto",
+                     color_discrete_sequence=["#D7263D","#0A8A4E","#7A43F0","#2F2F2F"])
+        fig.update_layout(showlegend=False, height=350,
+                          margin=dict(l=10,r=10,t=10,b=10))
+        st.plotly_chart(fig, use_container_width=True)
+
+
 # ==========================
 #   Bottom nav (móvil)
 # ==========================
